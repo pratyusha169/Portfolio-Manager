@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NTAI TOPS — AI Project Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  /* ── Header ───────────────────────────────────────────────── */
+  header { background: #1a1d2e; border-bottom: 1px solid #2d3748; padding: 18px 28px; }
+  header h1 { font-size: 1.3rem; font-weight: 600; color: #7c3aed; }
+  header p  { font-size: 0.8rem; color: #718096; margin-top: 2px; }
+
+  /* ── Stats ────────────────────────────────────────────────── */
+  .stats { display: flex; gap: 10px; padding: 16px 28px; flex-wrap: wrap; }
+  .stat { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 8px;
+          padding: 12px 18px; min-width: 110px; text-align: center; }
+  .stat .val { font-size: 1.7rem; font-weight: 700; }
+  .stat .lbl { font-size: 0.72rem; color: #718096; margin-top: 2px; }
+  .stat.total  .val { color: #7c3aed; }
+  .stat.done   .val { color: #48bb78; }
+  .stat.prog   .val { color: #ed8936; }
+  .stat.paused .val { color: #a0aec0; }
+  .stat.ns     .val { color: #e53e3e; }
+
+  /* ── Filters ──────────────────────────────────────────────── */
+  .filters { display: flex; gap: 10px; padding: 0 28px 16px; flex-wrap: wrap; align-items: center; }
+  .filters input, .filters select {
+    background: #1a1d2e; border: 1px solid #2d3748; color: #e2e8f0;
+    border-radius: 6px; padding: 7px 11px; font-size: 0.82rem; }
+  .filters input { width: 220px; }
+  .filters input::placeholder { color: #4a5568; }
+  .filters select { min-width: 160px; }
+  .filters label { font-size: 0.75rem; color: #718096; }
+  .clear-btn { background: none; border: 1px solid #2d3748; color: #718096;
+               padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; }
+  .clear-btn:hover { border-color: #7c3aed; color: #7c3aed; }
+  .result-count { font-size: 0.78rem; color: #4a5568; margin-left: auto; }
+
+  /* ── Table ────────────────────────────────────────────────── */
+  .table-wrap { padding: 0 28px 40px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 900px; }
+
+  th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+       color: #718096; padding: 9px 10px; text-align: left; background: #151722;
+       border-bottom: 1px solid #2d3748; white-space: nowrap; user-select: none; }
+  th.sortable { cursor: pointer; }
+  th.sortable:hover { color: #e2e8f0; }
+  th .sort-icon { margin-left: 4px; opacity: 0.3; font-size: 0.65rem; }
+  th.asc  .sort-icon::after { content: '▲'; opacity: 1; }
+  th.desc .sort-icon::after { content: '▼'; opacity: 1; }
+  th:not(.asc):not(.desc) .sort-icon::after { content: '⇅'; }
+
+  td { padding: 9px 10px; font-size: 0.84rem; border-bottom: 1px solid #1a1f33;
+       vertical-align: top; }
+  tr.data-row:hover td { background: #1a1d2e; }
+  tr.data-row.hidden { display: none; }
+
+  .id-cell  { color: #4a5568; font-size: 0.75rem; width: 36px; text-align: center; white-space: nowrap; }
+  .cat-cell { font-size: 0.75rem; color: #a0aec0; max-width: 170px; }
+  .title-cell { font-weight: 500; max-width: 240px; }
+  .tools-cell { font-size: 0.74rem; color: #718096; max-width: 200px; }
+  .date-cell  { font-size: 0.78rem; color: #a0aec0; white-space: nowrap; min-width: 90px; }
+  .date-cell.empty { color: #2d3748; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px;
+           font-size: 0.71rem; font-weight: 600; white-space: nowrap; }
+  .badge-Not-Started { background: #2d1a1a; color: #fc8181; }
+  .badge-In-Progress { background: #2d2200; color: #f6ad55; }
+  .badge-Complete    { background: #1a2d1a; color: #68d391; }
+  .badge-Paused      { background: #1a1d2e; color: #718096; border: 1px solid #2d3748; }
+
+  .btn-row { display: flex; gap: 5px; align-items: center; white-space: nowrap; }
+  .edit-btn { background: none; border: 1px solid #2d3748; color: #a0aec0;
+              padding: 3px 9px; border-radius: 5px; cursor: pointer; font-size: 0.74rem; }
+  .edit-btn:hover { border-color: #7c3aed; color: #7c3aed; }
+  .info-btn { background: none; border: 1px solid #2d3748; color: #4a5568;
+              padding: 3px 7px; border-radius: 5px; cursor: pointer; font-size: 0.74rem; }
+  .info-btn:hover { border-color: #3182ce; color: #63b3ed; }
+
+  a.gh { color: #7c3aed; font-size: 0.78rem; text-decoration: none; }
+  a.gh:hover { text-decoration: underline; }
+
+  /* ── Detail drawer ────────────────────────────────────────── */
+  tr.detail-row td { padding: 0; }
+  tr.detail-row .drawer { display: none; padding: 12px 16px; background: #12151f;
+                          border-bottom: 1px solid #2d3748; font-size: 0.81rem; line-height: 1.6; }
+  tr.detail-row.open .drawer { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+  .ds strong { color: #7c3aed; font-size: 0.7rem; text-transform: uppercase;
+               letter-spacing: 0.05em; display: block; margin-bottom: 3px; }
+  .ds p { color: #a0aec0; }
+  .ds.full { grid-column: 1 / -1; }
+
+  /* ── Modal ────────────────────────────────────────────────── */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+              z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 10px;
+           padding: 26px; width: 540px; max-width: 96vw; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { font-size: 1rem; color: #e2e8f0; margin-bottom: 3px; }
+  .modal .modal-cat { font-size: 0.74rem; color: #718096; margin-bottom: 16px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal label { display: block; font-size: 0.73rem; color: #718096; margin-bottom: 4px; margin-top: 13px; }
+  .modal select, .modal input[type=text], .modal input[type=date], .modal textarea {
+    width: 100%; background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0;
+    border-radius: 6px; padding: 7px 10px; font-size: 0.84rem; }
+  .modal input[type=date]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+  .date-input-wrap { position: relative; display: flex; align-items: center; }
+  .date-input-wrap input { flex: 1; }
+  .clear-date { position: absolute; right: 6px; background: none; border: none;
+                color: #4a5568; cursor: pointer; font-size: 0.8rem; padding: 0 2px;
+                line-height: 1; }
+  .clear-date:hover { color: #fc8181; }
+  .modal textarea { resize: vertical; min-height: 72px; }
+  .modal hr { border: none; border-top: 1px solid #2d3748; margin: 16px 0; }
+  .modal-ro strong { color: #7c3aed; font-size: 0.7rem; text-transform: uppercase;
+                     letter-spacing: 0.05em; display: block; margin-bottom: 3px; margin-top: 12px; }
+  .modal-ro p { font-size: 0.8rem; color: #a0aec0; line-height: 1.55; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+  .btn-save   { background: #7c3aed; color: #fff; border: none; padding: 7px 18px;
+                border-radius: 6px; cursor: pointer; font-size: 0.84rem; }
+  .btn-cancel { background: none; border: 1px solid #2d3748; color: #a0aec0;
+                padding: 7px 18px; border-radius: 6px; cursor: pointer; font-size: 0.84rem; }
+
+  .no-results { text-align: center; padding: 48px; color: #4a5568; font-size: 0.9rem; display: none; }
+
+  .badge-phase-Define   { background: #1a2340; color: #63b3ed; }
+  .badge-phase-Design   { background: #231a40; color: #b794f4; }
+  .badge-phase-Develop  { background: #2d2000; color: #f6ad55; }
+  .badge-phase-Test     { background: #2a2200; color: #fefcbf; color: #ecc94b; }
+  .badge-phase-Document { background: #1a2d2d; color: #81e6d9; }
+  .badge-phase-Deliver  { background: #1a2d1a; color: #68d391; }
+  .badge-phase-empty    { background: transparent; color: #2d3748; border: 1px solid #2d3748; }
+
+  .expand-btn { background: none; border: 1px solid #2d3748; color: #a0aec0;
+                padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; }
+  .expand-btn:hover { border-color: #7c3aed; color: #7c3aed; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>NTAI TOPS — AI Project Portfolio Tracker</h1>
+  <p>Pratyusha Mogalisetti &nbsp;·&nbsp; 33 Projects &nbsp;·&nbsp; Python + Generative AI</p>
+</header>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat total"> <div class="val">33</div>                          <div class="lbl">Total</div></div>
+  <div class="stat done">  <div class="val" id="cnt-complete">{{ counts['Complete'] }}</div>   <div class="lbl">Complete</div></div>
+  <div class="stat prog">  <div class="val" id="cnt-progress">{{ counts['In Progress'] }}</div><div class="lbl">In Progress</div></div>
+  <div class="stat paused"><div class="val" id="cnt-paused">{{ counts['Paused'] }}</div>       <div class="lbl">Paused</div></div>
+  <div class="stat ns">    <div class="val" id="cnt-ns">{{ counts['Not Started'] }}</div>      <div class="lbl">Not Started</div></div>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+  <input  id="f-search"   type="text"   placeholder="Search title or tools…" oninput="applyFilters()">
+  <div>
+    <label>Category</label>
+    <select id="f-cat" onchange="applyFilters()">
+      <option value="">All categories</option>
+      {% set cats = projects | map(attribute='category') | unique | list %}
+      {% for c in cats %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+    </select>
+  </div>
+  <div>
+    <label>Status</label>
+    <select id="f-status" onchange="applyFilters()">
+      <option value="">All statuses</option>
+      <option>Not Started</option>
+      <option>In Progress</option>
+      <option>Complete</option>
+      <option>Paused</option>
+    </select>
+  </div>
+  <button class="clear-btn" onclick="clearFilters()">Clear</button>
+  <button class="expand-btn" id="expand-all-btn" onclick="toggleExpandAll()">Expand All</button>
+  <span class="result-count" id="result-count"></span>
+</div>
+
+<!-- Table -->
+<div class="table-wrap">
+  <table id="proj-table">
+    <thead>
+      <tr>
+        <th class="sortable" data-col="id">#<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="title">Project<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="category">Category<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="status">Status<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="phase">Phase<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="start_date">Start Date<span class="sort-icon"></span></th>
+        <th class="sortable" data-col="finish_date">Finish Date<span class="sort-icon"></span></th>
+        <th>Key Tools</th>
+        <th>GitHub</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+    {% for p in projects %}
+    <tr class="data-row"
+        data-id="{{ p.id }}"
+        data-title="{{ p.title | lower }}"
+        data-category="{{ p.category }}"
+        data-status="{{ p.status }}"
+        data-phase="{{ p.phase }}"
+        data-start="{{ p.start_date }}"
+        data-finish="{{ p.finish_date }}"
+        data-tools="{{ p.key_tools | lower }}"
+        data-project='{{ {"id": p.id, "title": p.title, "category": p.category, "status": p.status, "phase": p.phase, "start_date": p.start_date, "finish_date": p.finish_date, "github": p.github, "notes": p.notes, "description": p.description, "key_tools": p.key_tools, "validation_approach": p.validation_approach} | tojson }}'>
+
+      <td class="id-cell">{{ '%02d' % p.id }}</td>
+      <td class="title-cell">{{ p.title }}</td>
+      <td class="cat-cell">{{ p.category }}</td>
+      <td><span class="badge badge-{{ p.status.replace(' ', '-') }}">{{ p.status }}</span></td>
+      <td>
+        {% if p.phase %}
+          <span class="badge badge-phase-{{ p.phase }}">{{ p.phase }}</span>
+        {% else %}
+          <span class="badge badge-phase-empty">—</span>
+        {% endif %}
+      </td>
+      <td class="date-cell {% if not p.start_date %}empty{% endif %}">
+        {{ p.start_date if p.start_date else '—' }}</td>
+      <td class="date-cell {% if not p.finish_date %}empty{% endif %}">
+        {{ p.finish_date if p.finish_date else '—' }}</td>
+      <td class="tools-cell">{{ p.key_tools }}</td>
+      <td>
+        {% if p.github %}
+          <a class="gh" href="{{ p.github }}" target="_blank">&#x1f517; repo</a>
+        {% else %}
+          <span style="color:#2d3748">—</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="btn-row">
+          <button class="info-btn" data-drawer="{{ p.id }}">&#9432;</button>
+          <button class="edit-btn" data-edit="{{ p.id }}">Edit</button>
+        </div>
+      </td>
+    </tr>
+    <tr class="detail-row" id="drawer-{{ p.id }}">
+      <td colspan="10">
+        <div class="drawer">
+          <div class="ds full"><strong>Description</strong><p>{{ p.description }}</p></div>
+          <div class="ds"><strong>Key Tools</strong><p>{{ p.key_tools }}</p></div>
+          <div class="ds"><strong>Validation Approach</strong><p>{{ p.validation_approach | replace(' | ', '\n') }}</p></div>
+          {% if p.notes %}
+          <div class="ds full"><strong>Notes</strong><p>{{ p.notes }}</p></div>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="no-results" id="no-results">No projects match the current filters.</div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3 id="m-title"></h3>
+    <div class="modal-cat" id="m-cat"></div>
+    <form method="POST" id="m-form">
+
+      <div class="form-row">
+        <div>
+          <label>Status</label>
+          <select name="status" id="m-status">
+            <option>Not Started</option>
+            <option>In Progress</option>
+            <option>Complete</option>
+            <option>Paused</option>
+          </select>
+        </div>
+        <div>
+          <label>Phase</label>
+          <select name="phase" id="m-phase">
+            <option value="">— None —</option>
+            <option>Define</option>
+            <option>Design</option>
+            <option>Develop</option>
+            <option>Test</option>
+            <option>Document</option>
+            <option>Deliver</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label>Start Date</label>
+          <div class="date-input-wrap">
+            <input type="date" name="start_date" id="m-start">
+            <button type="button" class="clear-date" onclick="clearDate('m-start')" title="Clear date">&#x2715;</button>
+          </div>
+        </div>
+        <div>
+          <label>Finish Date</label>
+          <div class="date-input-wrap">
+            <input type="date" name="finish_date" id="m-finish">
+            <button type="button" class="clear-date" onclick="clearDate('m-finish')" title="Clear date">&#x2715;</button>
+          </div>
+        </div>
+      </div>
+
+      <label>GitHub Repo URL</label>
+      <input type="text" name="github" id="m-github" placeholder="https://github.com/…">
+
+      <label>Notes</label>
+      <textarea name="notes" id="m-notes" placeholder="Learnings, blockers, next steps…"></textarea>
+
+      <hr>
+
+      <div class="modal-ro">
+        <strong>Description</strong><p id="m-desc"></p>
+        <strong>Key Tools</strong><p id="m-tools"></p>
+        <strong>Validation Approach</strong><p id="m-validation" style="white-space:pre-line"></p>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ── Event delegation for Edit and Drawer buttons ─────────────────
+document.getElementById('tbody').addEventListener('click', e => {
+  const editBtn   = e.target.closest('[data-edit]');
+  const drawerBtn = e.target.closest('[data-drawer]');
+  if (editBtn) {
+    const row = editBtn.closest('tr.data-row');
+    const p   = JSON.parse(row.dataset.project);
+    openModal(p);
+  }
+  if (drawerBtn) {
+    document.getElementById('drawer-' + drawerBtn.dataset.drawer).classList.toggle('open');
+    // Re-sync expand-all button label based on current state
+    const total   = document.querySelectorAll('tr.detail-row:not(.hidden)').length;
+    const opened  = document.querySelectorAll('tr.detail-row.open:not(.hidden)').length;
+    allExpanded = (opened === total && total > 0);
+    document.getElementById('expand-all-btn').textContent = allExpanded ? 'Collapse All' : 'Expand All';
+  }
+});
+
+// ── Modal ────────────────────────────────────────────────────────
+function openModal(p) {
+  document.getElementById('m-title').textContent      = p.title;
+  document.getElementById('m-cat').textContent        = p.category;
+  document.getElementById('m-form').action            = '/update/' + p.id;
+  document.getElementById('m-status').value           = p.status;
+  document.getElementById('m-start').value            = p.start_date  || '';
+  document.getElementById('m-finish').value           = p.finish_date || '';
+  document.getElementById('m-github').value           = p.github      || '';
+  document.getElementById('m-notes').value            = p.notes       || '';
+  document.getElementById('m-desc').textContent       = p.description || '';
+  document.getElementById('m-tools').textContent      = p.key_tools   || '';
+  document.getElementById('m-validation').textContent = (p.validation_approach || '').split(' | ').join('\n');
+  document.getElementById('m-phase').value            = p.phase       || '';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+function clearDate(inputId) {
+  document.getElementById(inputId).value = '';
+  autoStatus();
+}
+
+function autoStatus() {
+  const start  = document.getElementById('m-start').value;
+  const finish = document.getElementById('m-finish').value;
+  const sel    = document.getElementById('m-status');
+  if (sel.value === 'Paused') return;          // never override Paused
+  if (finish) {
+    sel.value = 'Complete';
+  } else if (start) {
+    sel.value = 'In Progress';
+  } else {
+    sel.value = 'Not Started';
+  }
+}
+
+document.getElementById('m-start').addEventListener('change',  autoStatus);
+document.getElementById('m-finish').addEventListener('change', autoStatus);
+
+// ── Sort ─────────────────────────────────────────────────────────
+let sortCol = null, sortDir = 1;
+
+document.querySelectorAll('th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir *= -1; else { sortCol = col; sortDir = 1; }
+    document.querySelectorAll('th.sortable').forEach(t => t.classList.remove('asc','desc'));
+    th.classList.add(sortDir === 1 ? 'asc' : 'desc');
+    sortTable();
+  });
+});
+
+let allExpanded = false;
+function toggleExpandAll() {
+  allExpanded = !allExpanded;
+  document.querySelectorAll('tr.detail-row:not(.hidden)').forEach(dr => {
+    dr.classList.toggle('open', allExpanded);
+  });
+  document.getElementById('expand-all-btn').textContent = allExpanded ? 'Collapse All' : 'Expand All';
+}
+
+function cellVal(row, col) {
+  const map = { id:'id', title:'title', category:'category',
+                status:'status', phase:'phase', start_date:'start', finish_date:'finish' };
+  return (row.dataset[map[col]] || '').toLowerCase();
+}
+
+function sortTable() {
+  const tbody = document.getElementById('tbody');
+  // Collect pairs: [data-row, detail-row]
+  const pairs = [];
+  const rows  = [...tbody.querySelectorAll('tr.data-row')];
+  rows.forEach(r => {
+    const drawer = document.getElementById('drawer-' + r.dataset.id);
+    pairs.push([r, drawer]);
+  });
+  pairs.sort((a, b) => {
+    let av = cellVal(a[0], sortCol), bv = cellVal(b[0], sortCol);
+    if (sortCol === 'id') { av = +a[0].dataset.id; bv = +b[0].dataset.id; return (av - bv) * sortDir; }
+    // Empty dates sort to end
+    if ((sortCol === 'start_date' || sortCol === 'finish_date') && (!av || !bv)) {
+      if (!av && !bv) return 0;
+      return av ? -sortDir : sortDir;
+    }
+    return av.localeCompare(bv) * sortDir;
+  });
+  pairs.forEach(([r, d]) => { tbody.appendChild(r); if (d) tbody.appendChild(d); });
+  applyFilters();
+}
+
+// ── Filter ───────────────────────────────────────────────────────
+function applyFilters() {
+  const search = document.getElementById('f-search').value.toLowerCase();
+  const cat    = document.getElementById('f-cat').value;
+  const status = document.getElementById('f-status').value;
+
+  let visible = 0;
+  document.querySelectorAll('tr.data-row').forEach(row => {
+    const match =
+      (!search || row.dataset.title.includes(search) || row.dataset.tools.includes(search)) &&
+      (!cat    || row.dataset.category === cat) &&
+      (!status || row.dataset.status   === status);
+    row.classList.toggle('hidden', !match);
+    // Also hide corresponding detail drawer when row is hidden
+    const drawer = document.getElementById('drawer-' + row.dataset.id);
+    if (drawer) drawer.classList.toggle('hidden', !match);
+    if (match) visible++;
+  });
+
+  const total = document.querySelectorAll('tr.data-row').length;
+  document.getElementById('result-count').textContent =
+    (search || cat || status) ? `${visible} of ${total} projects` : '';
+  document.getElementById('no-results').style.display = visible === 0 ? 'block' : 'none';
+}
+
+function clearFilters() {
+  document.getElementById('f-search').value  = '';
+  document.getElementById('f-cat').value     = '';
+  document.getElementById('f-status').value  = '';
+  applyFilters();
+}
+</script>
+</body>
+</html>
