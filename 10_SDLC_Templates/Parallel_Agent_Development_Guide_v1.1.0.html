@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parallel Agent Development Guide v1.1.0 - TaxUno</title>
+<style>
+  /* ── Theme Variables ── */
+  :root {
+    --sidebar-width: 260px;
+    --topbar-h: 50px;
+  }
+  /* Dark theme: warm, readable, no neon */
+  [data-theme="dark"] {
+    --bg: #1c1f26; --surface: #232730; --surface2: #2c313b;
+    --accent: #d4a843; --accent-dim: #b08c32; --heading: #e8c872;
+    --text: #d5d0c8; --text-dim: #9e9a92; --text-bright: #f0ece4;
+    --link: #7fb5d6; --link-hover: #a9d4ef;
+    --green: #6cc070; --yellow: #d4a843; --red: #cf7070; --blue: #7fb5d6;
+    --border: #3a3e48; --border-accent: #d4a843;
+    --badge-bg: rgba(212,168,67,0.12); --badge-text: #d4a843;
+    --code-bg: #181b22; --card-bg: #272b34;
+    --topbar-bg: #232730; --sidebar-bg: #1c1f26;
+  }
+  /* Light theme */
+  [data-theme="light"] {
+    --bg: #f5f3ef; --surface: #eae7e1; --surface2: #ddd9d1;
+    --accent: #8b6914; --accent-dim: #6e5310; --heading: #5a4210;
+    --text: #3a3632; --text-dim: #706a60; --text-bright: #1a1816;
+    --link: #2a6e96; --link-hover: #1a4e6e;
+    --green: #2d7830; --yellow: #8b6914; --red: #a04040; --blue: #2a6e96;
+    --border: #c8c3b8; --border-accent: #8b6914;
+    --badge-bg: rgba(139,105,20,0.1); --badge-text: #8b6914;
+    --code-bg: #e8e5de; --card-bg: #eae7e1;
+    --topbar-bg: #eae7e1; --sidebar-bg: #f0ede8;
+  }
+
+  /* ── Reset ── */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; }
+
+  /* ── Sticky Topbar ── */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+    height: var(--topbar-h); background: var(--topbar-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; padding: 0 20px;
+  }
+  .topbar-title { font-size: 15px; color: var(--text-bright); font-weight: 600; margin-left: 12px; }
+  .topbar-version { color: var(--text-bright); font-size: 13px; font-weight: 600; margin-left: 8px; }
+  .topbar-meta { color: var(--text-dim); font-size: 12px; margin-left: auto; }
+  .topbar-theme-btn {
+    background: none; border: 1px solid var(--border); color: var(--text); cursor: pointer;
+    padding: 5px 10px; border-radius: 4px; font-size: 14px; margin-left: 14px;
+  }
+  .topbar-theme-btn:hover { background: var(--surface2); }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    position: fixed; top: var(--topbar-h); left: 0; bottom: 0;
+    width: var(--sidebar-width); min-width: 180px; max-width: 400px;
+    background: var(--sidebar-bg); border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 14px 0; z-index: 100;
+    transition: transform 0.25s ease;
+  }
+  .sidebar.collapsed { transform: translateX(-100%); }
+  .sidebar a {
+    display: block; padding: 6px 16px; color: var(--text-dim); text-decoration: none;
+    font-size: 13px; border-left: 3px solid transparent;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .sidebar a:hover { color: var(--text-bright); background: var(--surface2); border-left-color: var(--accent); }
+  .sidebar a.sub { padding-left: 30px; font-size: 12px; }
+  .sidebar .sep { height: 1px; background: var(--border); margin: 10px 16px; }
+
+  /* ── Sidebar Toggle Button (at intersection of topbar + sidebar) ── */
+  .sidebar-toggle {
+    position: fixed; top: 0; left: 0; z-index: 300;
+    width: 42px; height: var(--topbar-h);
+    background: var(--topbar-bg); border: none; border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim); cursor: pointer; font-size: 18px; display: flex;
+    align-items: center; justify-content: center; transition: background 0.15s;
+  }
+  .sidebar-toggle:hover { background: var(--surface2); color: var(--text-bright); }
+
+  /* ── Resize Handle ── */
+  .resize-handle {
+    position: fixed; top: var(--topbar-h); bottom: 0; width: 5px; cursor: col-resize; z-index: 110;
+    left: var(--sidebar-width); background: transparent;
+    transition: left 0.25s ease;
+  }
+  .resize-handle:hover, .resize-handle.active { background: var(--accent-dim); opacity: 0.6; }
+  .sidebar.collapsed ~ .resize-handle { display: none; }
+
+  /* ── Main Content ── */
+  .main {
+    margin-left: var(--sidebar-width); margin-top: var(--topbar-h);
+    padding: 28px 52px 80px; max-width: 920px;
+    transition: margin-left 0.25s ease;
+  }
+  .main.full { margin-left: 0; }
+
+  /* ── Section Dividers + Scroll Offset ── */
+  h2 {
+    font-size: 21px; color: var(--text-bright); font-weight: 700;
+    margin: 0; padding: 18px 0 10px;
+    border-top: 2px solid var(--border-accent);
+    scroll-margin-top: calc(var(--topbar-h) + 8px);
+  }
+  h2:first-of-type { margin-top: 0; }
+  .section-gap { height: 36px; }
+
+  h3 { font-size: 16px; margin: 22px 0 10px; color: var(--accent); font-weight: 600;
+       scroll-margin-top: calc(var(--topbar-h) + 8px); }
+  h4 { font-size: 14px; margin: 14px 0 8px; color: var(--blue); font-weight: 600; }
+  p { margin: 7px 0; font-size: 14px; }
+  a { color: var(--link); } a:hover { color: var(--link-hover); }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; font-size: 13px; }
+  th { background: var(--surface2); color: var(--accent); text-align: left; padding: 9px 10px; font-weight: 600; border-bottom: 2px solid var(--accent-dim); }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--surface); }
+
+  /* ── Code ── */
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; overflow-x: auto; margin: 10px 0; font-size: 13px; line-height: 1.5; }
+  code { font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace; color: var(--text); }
+  p code, td code, li code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .b-green { background: rgba(108,192,112,0.12); color: var(--green); }
+  .b-yellow { background: var(--badge-bg); color: var(--badge-text); }
+  .b-blue { background: rgba(127,181,214,0.12); color: var(--blue); }
+  .b-accent { background: rgba(207,112,112,0.12); color: var(--red); }
+  .b-purple { background: var(--badge-bg); color: var(--badge-text); }
+
+  /* ── Diagram ── */
+  .diagram { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin: 14px 0; font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre; overflow-x: auto; color: var(--green); }
+
+  /* ── Cards ── */
+  .card-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+  .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card h4 { margin-top: 0; }
+
+  /* ── Highlight boxes ── */
+  .hl { background: var(--surface); border-left: 4px solid var(--accent-dim); padding: 10px 14px; margin: 14px 0; border-radius: 0 6px 6px 0; font-size: 13px; }
+  .hl-green { border-left-color: var(--green); }
+  .hl-blue { border-left-color: var(--blue); }
+
+  /* ── Collapsible ── */
+  details { margin: 10px 0; }
+  summary { cursor: pointer; padding: 9px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-weight: 600; font-size: 13px; color: var(--text-bright); }
+  summary:hover { background: var(--surface2); }
+  details[open] summary { border-radius: 6px 6px 0 0; border-bottom: none; }
+  details > div { border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; padding: 14px; background: var(--card-bg); }
+
+  ul, ol { margin: 6px 0 6px 18px; } li { margin: 3px 0; line-height: 1.6; font-size: 14px; }
+  strong { color: var(--text-bright); }
+</style>
+</head>
+<body>
+
+<!-- ══ Sidebar Toggle (at intersection) ══ -->
+<button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar (Ctrl+B)">&#9776;</button>
+
+<!-- ══ Sticky Topbar ══ -->
+<header class="topbar" style="padding-left: 54px;">
+  <span class="topbar-title">Parallel Agent Development Guide</span>
+  <span class="topbar-version">v1.1.0</span>
+  <span class="topbar-meta">TaxUno | 2026-03-28</span>
+  <button class="topbar-theme-btn" id="themeToggle" title="Toggle dark/light theme">&#9788;</button>
+</header>
+
+<!-- ══ Sidebar ══ -->
+<nav class="sidebar" id="sidebar">
+  <a href="#exec-summary">Executive Summary</a>
+  <div class="sep"></div>
+  <a href="#setup">1. Your Setup</a>
+  <a href="#approaches">2. The Four Parallel Approaches</a>
+  <a href="#approach-a" class="sub">A: Git Worktrees</a>
+  <a href="#approach-b" class="sub">B: Agent Teams</a>
+  <a href="#approach-c" class="sub">C: Claude Code + Copilot</a>
+  <a href="#approach-d" class="sub">D: Combined</a>
+  <div class="sep"></div>
+  <a href="#pareto">3. Pareto-Optimal Set (7 Picks)</a>
+  <a href="#deep-dive">4. Deep Dive: Each Plugin</a>
+  <a href="#dd-feature-dev" class="sub">4.1 feature-dev</a>
+  <a href="#dd-ralph" class="sub">4.2 ralph-wiggum</a>
+  <a href="#dd-review" class="sub">4.3 code-review</a>
+  <a href="#dd-workflow" class="sub">4.4 agent-workflow-designer</a>
+  <a href="#dd-spec" class="sub">4.5 spec-driven-workflow</a>
+  <a href="#dd-commit" class="sub">4.6 commit-commands</a>
+  <a href="#dd-onboard" class="sub">4.7 codebase-onboarding</a>
+  <div class="sep"></div>
+  <a href="#mcp">5. MCP Servers</a>
+  <a href="#cost">6. Token &amp; Cost Optimization</a>
+  <a href="#workflow">7. Combined Workflow</a>
+  <a href="#install">8. Installation</a>
+  <a href="#api-rules">9. API Key &amp; Subscription Rules</a>
+  <a href="#matrix">10. Quick Reference Matrix</a>
+</nav>
+
+<!-- ══ Resize Handle ══ -->
+<div class="resize-handle" id="resizeHandle"></div>
+
+<!-- ══ Main Content ══ -->
+<div class="main" id="mainContent">
+
+<!-- Executive Summary -->
+<h2 id="exec-summary">Executive Summary</h2>
+<p>
+  This guide shows how to run multiple Claude agents in parallel using your existing Claude Max ($100/mo) and GitHub Copilot Pro subscriptions — no API keys required.
+  You have four approaches: git worktrees (production-ready, independent sessions), agent teams (experimental, shared task list), Claude Code + Copilot side-by-side (privacy separation for PII data), and a combined strategy that assigns each task to the cheapest effective approach.
+  From ~30 available plugins across Anthropic Official and community sources, we identified a Pareto-optimal set of <strong>7 plugins</strong> that cover the broadest functionality with the least overlap and lowest token overhead.
+  Install them in under 6 minutes with the copy-paste commands in Section 8.
+  The guide also covers token cost optimization (use Sonnet for generation, Opus for reasoning) and strict rules about API key usage (extensions only — never <code>import anthropic</code> in your code).
+</p>
+
+<div class="section-gap"></div>
+
+<!-- §1 -->
+<h2 id="setup">1. Your Setup</h2>
+
+<h3>What You're Paying For</h3>
+<table>
+  <tr><th>Subscription</th><th>What It Gives You</th><th>How Claude Runs</th></tr>
+  <tr><td><strong>Claude Max</strong> ($100/mo)</td><td>Claude Code extension, CoWork, Opus 4.6 + Sonnet 4.6</td><td>Through Anthropic servers via the extension. No API key.</td></tr>
+  <tr><td><strong>Copilot Pro</strong></td><td>GitHub Copilot with Claude model selection</td><td>Through Microsoft servers via Copilot API. No Anthropic key.</td></tr>
+</table>
+
+<div class="hl">
+  <strong>Rule:</strong> All Claude usage goes through extensions (Claude Code or Copilot). Never through <code>anthropic.Client()</code> in your Python code.
+</div>
+
+<h3>Currently Installed</h3>
+<table>
+  <tr><th>Plugin</th><th>What It Provides</th></tr>
+  <tr><td><strong>superpowers</strong></td><td>Brainstorming, TDD, debugging, code review, git worktrees, parallel dispatch</td></tr>
+  <tr><td><strong>playwright</strong></td><td>Browser testing automation</td></tr>
+</table>
+
+<div class="section-gap"></div>
+
+<!-- §2 -->
+<h2 id="approaches">2. The Four Parallel Approaches</h2>
+
+<h3 id="approach-a">A: Git Worktrees <span class="badge b-green">Production-Ready</span></h3>
+<p>Each worktree = independent branch + filesystem + Claude Code session.</p>
+<pre><code># Terminal 1: Main development
+claude
+
+# Terminal 2: E2E testing (isolated branch)
+claude --worktree e2e-testing
+
+# Terminal 3: Feature work (isolated branch)
+claude --worktree feature-x</code></pre>
+<p><strong>How it works:</strong> <code>claude --worktree &lt;name&gt;</code> creates <code>.claude/worktrees/&lt;name&gt;/</code> with a full repo copy on branch <code>worktree-&lt;name&gt;</code>. Each terminal runs an independent Claude session with its own context window.</p>
+<p><strong>Token tip:</strong> Use Sonnet (<code>/model sonnet</code>) for worktree sessions doing code generation. Reserve Opus for the main session.</p>
+
+<h3 id="approach-b">B: Agent Teams <span class="badge b-yellow">Experimental</span></h3>
+<pre><code>export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+claude</code></pre>
+<p><strong>How it works:</strong> The lead creates child processes, each with its own context window. They share a task list (JSON) and send direct messages. The lead delegates and reviews.</p>
+<p><strong>Caveat:</strong> Split panes don't work in VSCode integrated terminal. Use external terminal + tmux.</p>
+<p><strong>Token cost:</strong> Linear with team size. 4-agent team = ~4x tokens.</p>
+
+<h3 id="approach-c">C: Claude Code + GitHub Copilot Side-by-Side <span class="badge b-green">Production-Ready</span></h3>
+<p>Two separate VSCode windows, two separate extensions, two separate billing:</p>
+<ul>
+  <li><strong>Window 1</strong> (Claude Code): TaxUno Trade development</li>
+  <li><strong>Window 2</strong> (Copilot with Claude Opus): Schedule D Ledger (PII data scanning under Microsoft DPA)</li>
+</ul>
+<p>Coordinated via the <strong>Mentu Ledger Agent Handoff System</strong>.</p>
+
+<h3 id="approach-d">D: Combined <span class="badge b-accent">Recommended</span></h3>
+<div class="diagram">VSCode Window 1 (Claude Code)          VSCode Window 2 (Copilot)
++----------------------------------+   +---------------------------+
+| Main Session (Opus, lead)        |   | Schedule D Scanner (Opus) |
+|   +--worktree: e2e-testing       |   | (private PII data)        |
+|   +--worktree: feature-x         |   +---------------------------+
++----------------------------------+
+              |
+        Mentu Ledger (coordination)</div>
+
+<div class="section-gap"></div>
+
+<!-- §3 -->
+<h2 id="pareto">3. The Pareto-Optimal Plugin Set (7 Picks)</h2>
+
+<p>From ~30 candidates, these 7 cover the most ground with the least overlap and lowest token overhead:</p>
+
+<table>
+  <tr><th>#</th><th>Plugin</th><th>Source</th><th>Replaces</th><th>Tokens</th></tr>
+  <tr><td>1</td><td><strong>feature-dev</strong></td><td><span class="badge b-blue">Official</span></td><td>fullstack-dev, architect, sdk-dev</td><td>Medium</td></tr>
+  <tr><td>2</td><td><strong>ralph-wiggum</strong></td><td><span class="badge b-blue">Official</span></td><td>Nothing (unique)</td><td>Low</td></tr>
+  <tr><td>3</td><td><strong>code-review</strong></td><td><span class="badge b-blue">Official</span></td><td>pr-review-toolkit, superpowers reviewer</td><td>Low</td></tr>
+  <tr><td>4</td><td><strong>agent-workflow-designer</strong></td><td><span class="badge b-yellow">Rezvani</span></td><td>agent-designer, AgentHub, orchestration</td><td>Medium</td></tr>
+  <tr><td>5</td><td><strong>spec-driven-workflow</strong></td><td><span class="badge b-yellow">Rezvani</span></td><td>requirements-analyst, prompt-engineer</td><td>Low</td></tr>
+  <tr><td>6</td><td><strong>commit-commands</strong></td><td><span class="badge b-blue">Official</span></td><td>hookify, git-worktree-manager</td><td>Minimal</td></tr>
+  <tr><td>7</td><td><strong>codebase-onboarding</strong></td><td><span class="badge b-yellow">Rezvani</span></td><td>runbook-gen, changelog-gen, migration-arch</td><td>Low</td></tr>
+</table>
+
+<div class="hl-green">
+  <strong>What we skipped and why:</strong> Scrum Master/PM (solo developer, not managing sprints). Security-guidance (add later). Memory-curator/pattern-promoter (premature until memory grows large). All 26 "Engineering Core" skills (superpowers already covers debugging, TDD, verification).
+</div>
+
+<div class="section-gap"></div>
+
+<!-- §4 -->
+<h2 id="deep-dive">4. Deep Dive: Each Plugin Explained</h2>
+
+<details id="dd-feature-dev">
+  <summary>4.1 feature-dev &mdash; 7-Phase Feature Development with Parallel Agents</summary>
+  <div>
+    <p><strong>What it does:</strong> Runs a structured workflow where each phase spawns parallel specialist agents:</p>
+    <pre><code>Phase 1: UNDERSTAND  - Read request, ask clarifying questions
+Phase 2: EXPLORE     - 2-3 parallel code-explorer agents scan codebase
+Phase 3: PLAN        - Synthesize findings into feature plan
+Phase 4: DESIGN      - 2-3 parallel architects propose approaches:
+                        (a) Minimal  (b) Clean  (c) Pragmatic
+Phase 5: CHECKPOINT  - YOU approve a design before any code
+Phase 6: IMPLEMENT   - Code generation against approved design
+Phase 7: REVIEW      - 3 parallel reviewers check result</code></pre>
+    <p><strong>Example:</strong></p>
+    <pre><code>/feature "Add carryover chain validation to the compute pipeline"</code></pre>
+    <p><strong>Token cost:</strong> ~15-25K per feature. Subagents use <strong>Sonnet</strong> by default (~5x cheaper than Opus).</p>
+    <p><strong>When NOT to use:</strong> Simple bug fixes, one-line changes, docs updates. Just ask directly.</p>
+  </div>
+</details>
+
+<details id="dd-ralph">
+  <summary>4.2 ralph-wiggum &mdash; Autonomous Iteration Loops</summary>
+  <div>
+    <p><strong>What it does:</strong> Creates a <code>while (!done)</code> loop for AI work. You define a task and completion condition. Claude runs, checks, retries until done.</p>
+    <p><strong>How it works:</strong> A <code>Stop</code> hook re-injects your prompt after each response. Claude sees its previous output, identifies what's incomplete, continues.</p>
+    <pre><code>/ralph-loop "Build pytest tests for carryover_service.py, 95% coverage.
+When complete:
+- All tests pass
+- Coverage >= 95%
+Output: &lt;promise&gt;TESTS_COMPLETE&lt;/promise&gt;" \
+  --completion-promise "TESTS_COMPLETE" \
+  --max-iterations 20</code></pre>
+    <p><strong>Token cost:</strong> ~2-5K per iteration. Budget total = iterations x cost.</p>
+    <p><strong>When NOT to use:</strong> Tasks needing human judgment mid-stream. Tasks where failure isn't detectable.</p>
+    <p><strong>Key strength:</strong> Set it up, walk away. It iterates autonomously. Perfect for long-running operations.</p>
+  </div>
+</details>
+
+<details id="dd-review">
+  <summary>4.3 code-review &mdash; 5 Parallel Sonnet Reviewers</summary>
+  <div>
+    <p><strong>What it does:</strong> Spawns 5 parallel <strong>Sonnet</strong> agents, each reviewing from a different angle: correctness, security, performance, style, test coverage.</p>
+    <p><strong>Why Sonnet, not Opus:</strong> Five focused cheap reviews catch more than one expensive broad review. "Ensemble of cheap models beats one expensive model."</p>
+    <pre><code>/code-review</code></pre>
+    <p><strong>Token cost:</strong> ~10-15K total across all 5 agents (Sonnet pricing).</p>
+    <p><strong>When NOT to use:</strong> Tiny changes (1-2 files). Overhead isn't worth it for a typo fix.</p>
+  </div>
+</details>
+
+<details id="dd-workflow">
+  <summary>4.4 agent-workflow-designer &mdash; Multi-Agent Coordination Patterns</summary>
+  <div>
+    <p><strong>What it does:</strong> Design tool (not execution). Outputs workflow definitions for 5 patterns:</p>
+    <table>
+      <tr><th>Pattern</th><th>When</th><th>TaxUno Example</th></tr>
+      <tr><td><strong>Sequential</strong></td><td>Strict ordering</td><td>Scan &rarr; Extract &rarr; Validate</td></tr>
+      <tr><td><strong>Parallel</strong></td><td>Independent tasks</td><td>3 worktrees: tests, feature, bugfix</td></tr>
+      <tr><td><strong>Router</strong></td><td>Mixed task types</td><td>OCR task &rarr; OCR agent; DB &rarr; DB agent</td></tr>
+      <tr><td><strong>Orchestrator</strong></td><td>Dependencies</td><td>Lead manages compute pipeline steps</td></tr>
+      <tr><td><strong>Evaluator</strong></td><td>Best of N</td><td>3 agents try OCR engines, pick best</td></tr>
+    </table>
+    <p><strong>Includes:</strong> <code>workflow_scaffolder.py</code> generates skeleton configs.</p>
+    <p><strong>Token cost:</strong> ~8K when loaded. Load once to design, then unload.</p>
+  </div>
+</details>
+
+<details id="dd-spec">
+  <summary>4.5 spec-driven-workflow &mdash; Formal Requirements Before Code</summary>
+  <div>
+    <p><strong>What it does:</strong> Enforces "no code until spec is validated." Uses RFC 2119 (MUST/SHOULD/MAY), Given/When/Then acceptance criteria, edge case mapping.</p>
+    <pre><code>1. ELICIT     - Gather requirements (use existing PRDs)
+2. SPECIFY    - Write spec: FR/NFR/AC/Edge Cases
+3. VALIDATE   - spec_validator.py scores 80+/100 to proceed
+4. EXTRACT    - test_extractor.py auto-generates test cases
+5. IMPLEMENT  - Code against spec (stops if ambiguous)
+6. VERIFY     - Run extracted tests</code></pre>
+    <p><strong>Why it matters for TaxUno:</strong> Tax calculations are IRS-regulated. A spec with Given/When/Then test cases catches errors before code is written.</p>
+    <p><strong>Token cost:</strong> Low. Spec is a markdown file. Validator is a Python script. Neither persists in context.</p>
+  </div>
+</details>
+
+<details id="dd-commit">
+  <summary>4.6 commit-commands &mdash; Fast Git Operations</summary>
+  <div>
+    <table>
+      <tr><th>Command</th><th>What</th></tr>
+      <tr><td><code>/commit</code></td><td>Stage + diff + generate message + commit</td></tr>
+      <tr><td><code>/commit-push-pr</code></td><td>Above + push + create PR</td></tr>
+      <tr><td><code>/clean_gone</code></td><td>Remove local branches with deleted upstream</td></tr>
+    </table>
+    <p><strong>Token cost:</strong> Minimal. Slash commands inject a small prompt.</p>
+  </div>
+</details>
+
+<details id="dd-onboard">
+  <summary>4.7 codebase-onboarding &mdash; Auto-Generate Project Docs</summary>
+  <div>
+    <p><strong>What it does:</strong> Analyzes codebase, generates structured onboarding document: architecture, key files, data flow, conventions.</p>
+    <p><strong>Multi-agent value:</strong> When Copilot receives a handoff, this document reduces ramp-up context vs. exploration queries.</p>
+    <p><strong>Token cost:</strong> ~10-15K one-time. Output is a markdown file that future agents read — no ongoing cost.</p>
+  </div>
+</details>
+
+<div class="section-gap"></div>
+
+<!-- §5 -->
+<h2 id="mcp">5. MCP Servers Worth Adding</h2>
+
+<p>Only add what you'll use regularly. Each tool call result consumes context tokens.</p>
+
+<table>
+  <tr><th>Server</th><th>What It Gives You</th><th>Worth It?</th></tr>
+  <tr><td><strong>sqlite</strong></td><td>Query Ledger DB from Claude</td><td><span class="badge b-green">Yes</span> saves throwaway scripts</td></tr>
+  <tr><td><strong>github</strong></td><td>Create PRs, read issues</td><td><span class="badge b-yellow">Maybe</span> <code>gh</code> CLI works via Bash</td></tr>
+  <tr><td><strong>filesystem</strong></td><td>Cross-project file access</td><td><span class="badge b-accent">No</span> Claude already has Read/Write</td></tr>
+</table>
+
+<p><strong>Recommended:</strong> Add only <code>sqlite</code> for now:</p>
+<pre><code>// .claude/settings.json → "mcpServers"
+{
+  "sqlite-ledger": {
+    "command": "npx",
+    "args": ["-y", "@anthropic/mcp-server-sqlite",
+             "--db", "../04b_.../data/schedule_d_loss_carryover.db"]
+  }
+}</code></pre>
+
+<div class="section-gap"></div>
+
+<!-- §6 -->
+<h2 id="cost">6. Token &amp; Cost Optimization</h2>
+
+<h3>The Three Rules</h3>
+<div class="card-row">
+  <div class="card">
+    <h4>Rule 1: Sonnet for generation, Opus for reasoning</h4>
+    <p><strong>Opus:</strong> Architecture, code review, debugging</p>
+    <p><strong>Sonnet:</strong> Code gen, tests, docs, batch refactors</p>
+    <p>Switch mid-session: <code>/model sonnet</code></p>
+  </div>
+  <div class="card">
+    <h4>Rule 2: Be specific, not vague</h4>
+    <p style="color:var(--red);">Expensive: "Fix any issues in the codebase"</p>
+    <p style="color:var(--green);">Cheap: "Fix sign convention in ledger_client.py line 98"</p>
+  </div>
+</div>
+<div class="card">
+  <h4>Rule 3: Use subagents to isolate context</h4>
+  <p>Background subagents produce large output that gets <strong>summarized</strong> before returning to your main context. This saves tokens vs reading 20 files directly.</p>
+</div>
+
+<h3>Cost Estimates (Claude Max)</h3>
+<table>
+  <tr><th>Workflow</th><th>Daily Cost</th><th>Model Mix</th></tr>
+  <tr><td>Light (2-3 features)</td><td>~$4-6</td><td>70% Sonnet, 30% Opus</td></tr>
+  <tr><td>Medium (parallel worktrees)</td><td>~$8-12</td><td>60% Sonnet, 40% Opus</td></tr>
+  <tr><td>Heavy (agent teams + loops)</td><td>~$15-20</td><td>50/50</td></tr>
+</table>
+
+<h3>Long-Running Operations</h3>
+<ul>
+  <li><strong>ralph-wiggum loops:</strong> Set up, walk away. Iterates until done or max iterations.</li>
+  <li><strong>Background worktrees:</strong> <code>claude --worktree long-task</code> in a separate terminal.</li>
+  <li><strong>Copilot window:</strong> Private data work on separate quota entirely.</li>
+</ul>
+
+<div class="section-gap"></div>
+
+<!-- §7 -->
+<h2 id="workflow">7. Combined Workflow for TaxUno</h2>
+
+<div class="hl-green">
+<strong>Morning:</strong>
+<ol>
+  <li>Open VSCode Window 1 (Claude Code, main session)</li>
+  <li>Check Mentu ledger status</li>
+  <li>Spawn worktree if needed: <code>claude --worktree &lt;task&gt;</code></li>
+</ol>
+<strong>Development:</strong>
+<ol start="4">
+  <li>Complex features: <code>/feature "description"</code></li>
+  <li>TDD iteration: <code>/ralph-loop "build + test until green"</code></li>
+  <li>Simple changes: Just ask directly (no plugin overhead)</li>
+</ol>
+<strong>Before Merge:</strong>
+<ol start="7">
+  <li>Code review: <code>/code-review</code></li>
+  <li>Verify: <code>superpowers:verification-before-completion</code></li>
+</ol>
+<strong>End of Session:</strong>
+<ol start="9">
+  <li>Commit: <code>/commit</code></li>
+  <li>Handoff if needed: Mentu ledger + handoff doc</li>
+</ol>
+</div>
+
+<h3>Task Assignment</h3>
+<table>
+  <tr><th>Task Type</th><th>Where</th><th>Model</th><th>Why</th></tr>
+  <tr><td>Architecture decisions</td><td>Main session</td><td>Opus</td><td>Needs deep reasoning</td></tr>
+  <tr><td>Feature implementation</td><td>Worktree</td><td>Sonnet</td><td>Code gen is cheaper</td></tr>
+  <tr><td>E2E test writing</td><td>Worktree</td><td>Sonnet</td><td>Test gen is mechanical</td></tr>
+  <tr><td>PII data scanning</td><td>Copilot window</td><td>Opus (Copilot)</td><td>DPA privacy</td></tr>
+  <tr><td>Code review</td><td>Main session</td><td>Sonnet (via code-review)</td><td>5 cheap &gt; 1 expensive</td></tr>
+  <tr><td>Long iteration</td><td>ralph-wiggum loop</td><td>Sonnet</td><td>Autonomous, many rounds</td></tr>
+</table>
+
+<div class="section-gap"></div>
+
+<!-- §8 -->
+<h2 id="install">8. Installation (Copy-Paste Ready)</h2>
+
+<h3>Step 1: Official Anthropic Plugins (2 min)</h3>
+<pre><code># In any Claude Code session:
+/install feature-dev
+/install code-review
+/install ralph-wiggum
+/install commit-commands
+
+# If /install isn't available:
+claude plugin install feature-dev@claude-plugins-official
+claude plugin install code-review@claude-plugins-official
+claude plugin install ralph-wiggum@claude-plugins-official
+claude plugin install commit-commands@claude-plugins-official</code></pre>
+
+<h3>Step 2: Rezvani Skills (3 min)</h3>
+<pre><code># Option A: Marketplace (recommended)
+/plugin marketplace add alirezarezvani/claude-skills
+
+# Option B: Clone locally
+git clone https://github.com/alirezarezvani/claude-skills.git ~/.claude/skills/rezvani
+
+# Then install the 3 Pareto picks:
+/install agent-workflow-designer
+/install spec-driven-workflow
+/install codebase-onboarding</code></pre>
+
+<h3>Step 3: SQLite MCP Server (1 min)</h3>
+<p>Edit <code>.claude/settings.json</code>, add under <code>mcpServers</code>:</p>
+<pre><code>{
+  "sqlite-ledger": {
+    "command": "npx",
+    "args": ["-y", "@anthropic/mcp-server-sqlite",
+             "--db", "../04b_.../data/schedule_d_loss_carryover.db"]
+  }
+}</code></pre>
+
+<h3>Step 4: Agent Teams (Optional)</h3>
+<pre><code># Add to shell profile
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1</code></pre>
+
+<h3>Step 5: Verify</h3>
+<pre><code>claude /skills    # List skills
+claude /plugins   # List plugins</code></pre>
+
+<div class="section-gap"></div>
+
+<!-- §9 -->
+<h2 id="api-rules">9. API Key &amp; Subscription Rules</h2>
+
+<table>
+  <tr><th>Action</th><th>Allowed?</th><th>How</th></tr>
+  <tr><td>Claude Code extension in VSCode</td><td><span class="badge b-green">Yes</span></td><td>Claude Max tokens</td></tr>
+  <tr><td>GitHub Copilot with Claude model</td><td><span class="badge b-green">Yes</span></td><td>Copilot Pro tokens</td></tr>
+  <tr><td><code>import anthropic</code> in Python</td><td><span class="badge b-accent">NO</span></td><td>Requires API key + separate billing</td></tr>
+  <tr><td>MCP servers (sqlite, github)</td><td><span class="badge b-green">Yes</span></td><td>Run locally, invoked by extension</td></tr>
+  <tr><td>Plugins &amp; skills</td><td><span class="badge b-green">Yes</span></td><td>Executed by Claude Code extension</td></tr>
+  <tr><td>Background subagents</td><td><span class="badge b-green">Yes</span></td><td>Part of Claude Code, uses Max tokens</td></tr>
+  <tr><td>Agent teams</td><td><span class="badge b-green">Yes</span></td><td>Experimental, uses Max tokens</td></tr>
+</table>
+
+<div class="hl">
+  <strong>The Rule:</strong> All Claude usage goes through the extensions. Never through <code>anthropic.Client()</code> in your code. If a tool needs Claude, it must be an MCP server invoked by the extension.
+</div>
+
+<div class="section-gap"></div>
+
+<!-- §10 -->
+<h2 id="matrix">10. Quick Reference Matrix</h2>
+
+<h3>The Pareto Set (7 plugins)</h3>
+<table>
+  <tr><th>Need</th><th>Plugin</th><th>Command</th><th>Source</th></tr>
+  <tr><td>Complex features</td><td><strong>feature-dev</strong></td><td><code>/feature "desc"</code></td><td><span class="badge b-blue">Official</span></td></tr>
+  <tr><td>Autonomous iteration</td><td><strong>ralph-wiggum</strong></td><td><code>/ralph-loop "desc"</code></td><td><span class="badge b-blue">Official</span></td></tr>
+  <tr><td>PR review (5 agents)</td><td><strong>code-review</strong></td><td><code>/code-review</code></td><td><span class="badge b-blue">Official</span></td></tr>
+  <tr><td>Multi-agent design</td><td><strong>agent-workflow-designer</strong></td><td>Skill tool</td><td><span class="badge b-yellow">Rezvani</span></td></tr>
+  <tr><td>Formal specs</td><td><strong>spec-driven-workflow</strong></td><td>Skill tool</td><td><span class="badge b-yellow">Rezvani</span></td></tr>
+  <tr><td>Fast git ops</td><td><strong>commit-commands</strong></td><td><code>/commit</code></td><td><span class="badge b-blue">Official</span></td></tr>
+  <tr><td>Onboarding docs</td><td><strong>codebase-onboarding</strong></td><td>Skill tool</td><td><span class="badge b-yellow">Rezvani</span></td></tr>
+</table>
+
+<h3>Already Installed (keep using)</h3>
+<table>
+  <tr><th>Plugin</th><th>Key Skills</th></tr>
+  <tr><td><strong>superpowers</strong></td><td>brainstorming, TDD, debugging, verification, worktrees, parallel dispatch</td></tr>
+  <tr><td><strong>playwright</strong></td><td>Browser E2E testing</td></tr>
+</table>
+
+<h3>The 4 Approaches</h3>
+<table>
+  <tr><th>Approach</th><th>Status</th><th>Best For</th><th>Tokens</th></tr>
+  <tr><td><strong>A: Worktrees</strong></td><td><span class="badge b-green">Production</span></td><td>Independent parallel tasks</td><td>N sessions</td></tr>
+  <tr><td><strong>B: Agent Teams</strong></td><td><span class="badge b-yellow">Experimental</span></td><td>Coordinated parallel research</td><td>N teammates</td></tr>
+  <tr><td><strong>C: Code + Copilot</strong></td><td><span class="badge b-green">Production</span></td><td>PII separation, cross-project</td><td>Separate quotas</td></tr>
+  <tr><td><strong>D: Combined</strong></td><td><span class="badge b-accent">Recommended</span></td><td>Your actual workflow</td><td>Task-optimized</td></tr>
+</table>
+
+<p style="margin-top: 40px; border-top: 1px solid var(--border); padding-top: 12px; color: var(--text-dim); font-size: 12px;">
+  Guide Version 1.1.0 | 2026-03-28 | Generated by Claude Opus 4.6 (Claude Code)
+</p>
+
+</div><!-- /main -->
+
+<!-- ══ JavaScript ══ -->
+<script>
+(function() {
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('mainContent');
+  const toggle = document.getElementById('sidebarToggle');
+  const handle = document.getElementById('resizeHandle');
+  const themeBtn = document.getElementById('themeToggle');
+  let collapsed = false, dragging = false;
+
+  // Sidebar toggle
+  toggle.addEventListener('click', function() {
+    collapsed = !collapsed;
+    sidebar.classList.toggle('collapsed', collapsed);
+    main.classList.toggle('full', collapsed);
+    toggle.textContent = collapsed ? '\u25B6' : '\u2630';
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'b') { e.preventDefault(); toggle.click(); }
+  });
+
+  // Sidebar resize
+  handle.addEventListener('mousedown', function(e) {
+    dragging = true; handle.classList.add('active');
+    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    var w = Math.max(180, Math.min(400, e.clientX));
+    document.documentElement.style.setProperty('--sidebar-width', w + 'px');
+    handle.style.left = w + 'px';
+  });
+  document.addEventListener('mouseup', function() {
+    if (dragging) { dragging = false; handle.classList.remove('active'); document.body.style.cursor = ''; document.body.style.userSelect = ''; }
+  });
+
+  // Theme toggle
+  themeBtn.addEventListener('click', function() {
+    var html = document.documentElement;
+    var current = html.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    themeBtn.textContent = next === 'dark' ? '\u2600' : '\u263D';
+    try { localStorage.setItem('theme', next); } catch(e) {}
+  });
+  // Restore saved theme
+  try {
+    var saved = localStorage.getItem('theme');
+    if (saved) { document.documentElement.setAttribute('data-theme', saved); themeBtn.textContent = saved === 'dark' ? '\u2600' : '\u263D'; }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>
