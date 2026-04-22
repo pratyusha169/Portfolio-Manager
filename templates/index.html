@@ -143,12 +143,12 @@
 
 <header>
   <h1>NTAI TOPS — AI Project Portfolio Tracker</h1>
-  <p>Pratyusha Mogalisetti &nbsp;·&nbsp; 33 Projects &nbsp;·&nbsp; Python + Generative AI</p>
+  <p>Pratyusha Mogalisetti &nbsp;·&nbsp; 13 Projects &nbsp;·&nbsp; Python + Generative AI</p>
 </header>
 
 <!-- Stats -->
 <div class="stats">
-  <div class="stat total"> <div class="val">33</div>                          <div class="lbl">Total</div></div>
+  <div class="stat total"> <div class="val">{{ projects | length }}</div>   <div class="lbl">Total</div></div>
   <div class="stat done">  <div class="val" id="cnt-complete">{{ counts['Complete'] }}</div>   <div class="lbl">Complete</div></div>
   <div class="stat prog">  <div class="val" id="cnt-progress">{{ counts['In Progress'] }}</div><div class="lbl">In Progress</div></div>
   <div class="stat paused"><div class="val" id="cnt-paused">{{ counts['Paused'] }}</div>       <div class="lbl">Paused</div></div>
@@ -209,7 +209,7 @@
         data-start="{{ p.start_date }}"
         data-finish="{{ p.finish_date }}"
         data-tools="{{ p.key_tools | lower }}"
-        data-project='{{ {"id": p.id, "title": p.title, "category": p.category, "status": p.status, "phase": p.phase, "start_date": p.start_date, "finish_date": p.finish_date, "github": p.github, "notes": p.notes, "description": p.description, "key_tools": p.key_tools, "validation_approach": p.validation_approach} | tojson }}'>
+        data-project='{{ {"id": p.id, "title": p.title, "category": p.category, "status": p.status, "phase": p.phase, "start_date": p.start_date, "finish_date": p.finish_date, "github": p.github, "notes": p.notes, "description": p.description, "key_tools": p.key_tools, "success_criteria": p.success_criteria, "validation_approach": p.validation_approach} | tojson }}'>
 
       <td class="id-cell">{{ '%02d' % p.id }}</td>
       <td class="title-cell">{{ p.title }}</td>
@@ -246,7 +246,8 @@
         <div class="drawer">
           <div class="ds full"><strong>Description</strong><p>{{ p.description }}</p></div>
           <div class="ds"><strong>Key Tools</strong><p>{{ p.key_tools }}</p></div>
-          <div class="ds"><strong>Validation Approach</strong><p>{{ p.validation_approach | replace(' | ', '\n') }}</p></div>
+          <div class="ds full"><strong>Success Criteria</strong><p>{{ p.success_criteria | replace(' | ', '\n') }}</p></div>
+          <div class="ds full"><strong>Validation Approach</strong><p>{{ p.validation_approach | replace(' | ', '\n') }}</p></div>
           {% if p.notes %}
           <div class="ds full"><strong>Notes</strong><p>{{ p.notes }}</p></div>
           {% endif %}
@@ -316,9 +317,14 @@
       <hr>
 
       <div class="modal-ro">
-        <strong>Description</strong><p id="m-desc"></p>
-        <strong>Key Tools</strong><p id="m-tools"></p>
-        <strong>Validation Approach</strong><p id="m-validation" style="white-space:pre-line"></p>
+        <label>Description</label>
+        <textarea name="description" id="m-desc" rows="4"></textarea>
+        <label>Key Tools</label>
+        <textarea name="key_tools" id="m-tools" rows="2"></textarea>
+        <label>Success Criteria</label>
+        <textarea name="success_criteria" id="m-criteria" rows="4"></textarea>
+        <label>Validation Approach</label>
+        <textarea name="validation_approach" id="m-validation" rows="4"></textarea>
       </div>
 
       <div class="modal-actions">
@@ -359,9 +365,10 @@ function openModal(p) {
   document.getElementById('m-finish').value           = p.finish_date || '';
   document.getElementById('m-github').value           = p.github      || '';
   document.getElementById('m-notes').value            = p.notes       || '';
-  document.getElementById('m-desc').textContent       = p.description || '';
-  document.getElementById('m-tools').textContent      = p.key_tools   || '';
-  document.getElementById('m-validation').textContent = (p.validation_approach || '').split(' | ').join('\n');
+  document.getElementById('m-desc').value      = p.description        || '';
+  document.getElementById('m-tools').value     = p.key_tools          || '';
+  document.getElementById('m-criteria').value  = (p.success_criteria   || '').split(' | ').join('\n');
+  document.getElementById('m-validation').value = (p.validation_approach || '').split(' | ').join('\n');
   document.getElementById('m-phase').value            = p.phase       || '';
   document.getElementById('modal').classList.add('open');
 }

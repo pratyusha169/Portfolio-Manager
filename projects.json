@@ -1,9 +1,15 @@
 {
-  "1": {
-    "status": "In Progress",
-    "github": "",
-    "notes": "",
-    "start_date": "2026-04-16",
-    "finish_date": ""
-  }
+  "1":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "2":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "3":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "4":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "5":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "6":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "7":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "8":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "9":  {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "10": {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "11": {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "12": {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""},
+  "13": {"status": "Not Started", "github": "", "notes": "", "start_date": "", "finish_date": "", "phase": "", "description": "", "key_tools": "", "success_criteria": "", "validation_approach": "", "last_updated": ""}
 }
